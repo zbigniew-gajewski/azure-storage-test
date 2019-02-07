@@ -4,6 +4,7 @@
     using Microsoft.WindowsAzure.Storage.Blob;
     using System;
     using System.IO;
+    using System.Linq;
     using System.Threading.Tasks;
 
     public class AzureStorageService
@@ -48,14 +49,17 @@
                 Console.WriteLine("Temp file = {0}", sourceFile);
                 Console.WriteLine("Uploading to Blob storage as blob '{0}'", localFileName);
 
+            
                 // Get a reference to the blob address, then upload the file to the blob.
                 // Use the value of localFileName for the blob name.
                 CloudBlockBlob cloudBlockBlob = cloudBlobContainer.GetBlockBlobReference(localFileName);
+                cloudBlockBlob.Metadata.Add("date", $"{DateTime.Now.ToString()} {DateTime.Now.Millisecond}");
+                //cloudBlockBlob.Metadata.Add("month", "01");
+                //cloudBlockBlob.Metadata.Add("day", "31");
+                //cloudBlockBlob.Metadata.Add("sec", DateTime.Now.Second.ToString());
+
                 await cloudBlockBlob.UploadFromFileAsync(sourceFile);
             }
-
-
-
         }
 
         public async Task ListBlobs()
@@ -82,14 +86,34 @@
                 BlobContinuationToken blobContinuationToken = null;
                 do
                 {
-                    var results = await cloudBlobContainer.ListBlobsSegmentedAsync(null, blobContinuationToken);
+                    BlobResultSegment results = await cloudBlobContainer.ListBlobsSegmentedAsync(null, blobContinuationToken);
                     // Get the value of the continuation token returned by the listing call.
                     blobContinuationToken = results.ContinuationToken;
-                    foreach (IListBlobItem item in results.Results)
+                    foreach (ICloudBlob item in results.Results)
                     {
-                        Console.WriteLine(item.Uri);
+                        string date = string.Empty;
+                        //string year = string.Empty;
+                        //string month = string.Empty;
+                        //string day = string.Empty;
+                        //string sec = string.Empty;
+
+                        // var cloudBlob = item as ICloudBlob;
+                        await item.FetchAttributesAsync();
+                        if (item != null)
+                        {
+                            date = item.Metadata.FirstOrDefault(m => m.Key == "date").Value;
+                            //month = item.Metadata.FirstOrDefault(m => m.Key == "month").Value;
+                            //day = item.Metadata.FirstOrDefault(m => m.Key == "day").Value;
+                            //sec = item.Metadata.FirstOrDefault(m => m.Key == "sec").Value;
+                        }
+
+                        Console.WriteLine();
+                        Console.WriteLine($"Uri                  : {item.Uri}");              
+                        Console.WriteLine($" Metadata - date     : {date}");                    
                     }
                 } while (blobContinuationToken != null); // Loop while the continuation token is not null. 
+
+              
 
             });
         }
